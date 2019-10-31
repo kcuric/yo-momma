@@ -1,63 +1,32 @@
-import cv2
-import os
-import random
 import time
-import requests
-from gtts import gTTS
-from playsound import playsound
-from bs4 import BeautifulSoup
+import os
+import signal
+import sys
+import logging
+from joker import Joker
 
-class Joker:
+joker = Joker()
 
-    jokes = list()
+def sigint_handler(signum, frame):
+    """
+    Function for handling the program abort
+    via CTRL + C (SIGINT).
+    """
+    global joker
+    logging.info('Program is terminating!')
+    del joker
+    sys.exit(0)
 
-    def __init__(self):
-        self.jokes =  self.GetJokes()
+def main():
+    signal.signal(signal.SIGINT, sigint_handler)
 
-    def GetJokes(self):
-        self.response = requests.get('https://www.laughfactory.com/jokes/yo-momma-jokes')
-        self.soup = BeautifulSoup(self.response.text, 'html.parser')
-        self.div = self.soup.find_all('div', {'class': 'joke-text'})
-        return [joke.find('p').text.strip() for joke in self.div]
-
-    def TellJoke(self):
-        self.tts = gTTS(text=random.choice(self.jokes), lang='en')
-        self.tts.save('jokes/joke.mp3')
-        playsound('jokes/joke.mp3')
-
-    def TakePicture(self):
-        cam = cv2.VideoCapture(0)
-        pictureTaken, image = cam.read()
-
-        if pictureTaken:
-            return self.FindFaces(image)
-        else:
-            return 0
-
-    def FindFaces(self, image: object) -> int:
-        self.imagePath = image
-        self.cascPath = 'haarcascade_frontalface_default.xml'
-
-        self.faceCascade = cv2.CascadeClassifier(self.cascPath)
-
-        self.gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        self.faces = self.faceCascade.detectMultiScale(
-            self.gray,
-            scaleFactor = 1.1,
-            minNeighbors = 5,
-            minSize = (30, 30),
-            flags = cv2.CASCADE_SCALE_IMAGE
-        )
-        return len(self.faces)
-
-def Main():
-    jk = Joker()
-
+    logging.info('USE CTRL+C TO STOP THE PROGRAM! :)')
     while True:
-        if jk.TakePicture():
-            jk.TellJoke()
+        if joker.take_picture():
+            joker.tell_joke()
+        elif joker.take_picture() == -1:
+            logging.error("ERROR: Picture not taken!")
         time.sleep(2)
 
 if __name__ == "__main__":
-    Main()
+    main()
